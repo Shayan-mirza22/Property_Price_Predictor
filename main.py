@@ -121,14 +121,14 @@ You can spot outliers (e.g., a 3 BHK that's far too cheap or expensive compared 
 
 Useful for understanding pricing inconsistency in specific locations — which is very important for building a better model. """
 
-plot_scatter_chart(df6, "Rajaji Nagar")
-plot_scatter_chart(df6, "Hebbal")
+#plot_scatter_chart(df6, "Rajaji Nagar")
+#plot_scatter_chart(df6, "Hebbal")
 
 def remove_bhk_outliers(df):
-    exclude_indices = np.array([])
-    for location, location_df in df.groupby('location'):
-        bhk_stats = {}
-        for bhk, bhk_df in location_df.groupby('bhk'):
+    exclude_indices = np.array([])      # Hold the indices (row numbers) of the outliers to be removed from the dataset.
+    for location, location_df in df.groupby('location'):       # location_df is a smaller DataFrame that only includes data from one location (e.g., "Indira Nagar").
+        bhk_stats = {}      # A dictionary to store the mean, std and count for usage later
+        for bhk, bhk_df in location_df.groupby('bhk'):        # Similar to location_df, bhk_Df is smaller datadrame here
             bhk_stats[bhk] = {
                 'mean' : np.mean(bhk_df.price_per_sqft),
                 'std' : np.std(bhk_df.price_per_sqft),
@@ -136,7 +136,18 @@ def remove_bhk_outliers(df):
             }
         
         for bhk, bhk_df in location_df.groupby('bhk'):
-            stats = bhk_stats.get(bhk-1)
-            if stats and stats['count'] > 5:
-                exclude_indices = np.append(exclude_indices. bhk_df[bhk_df.price_per_sqft<(stats['mean'])].index.values)
-    return df.drop(exclude_indices, axis='index')
+            stats = bhk_stats.get(bhk-1)      #Comparing the bhk group with the bhk-1 group (e.g., 3 BHK compared with 2 BHK).
+            if stats and stats['count'] > 5:       # Ensure having more than 5 rows for proper comparison
+                exclude_indices = np.append(exclude_indices, bhk_df[bhk_df.price_per_sqft<(stats['mean'])].index.values)      # Is this larger BHK (bhk) cheaper per sqft than the average of smaller BHK (bhk-1)? If yes, it's an outlier.
+    return df.drop(exclude_indices, axis='index')      # all rows with indices in exclude_indices are dropped from the DataFrame. axis='index' makes sure we’re dropping rows, not columns.
+
+df7 = remove_bhk_outliers(df6)
+print(df7.shape)
+
+#plot_scatter_chart(df6, "Rajaji Nagar")
+#plot_scatter_chart(df6, "Hebbal")
+
+df8 = df7[df7.bath<df7.bhk+2]      # A 2 BHK with 4 or more bathrooms is likely a luxury or incorrect entry, so filtered from df7 and new dataframe is df8
+print(df8.shape)
+
+df9 = df8.drop(['size', 'price_per_sqft'])
