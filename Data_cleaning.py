@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import matplotlib
+import joblib
 
 df = pd.read_csv("Bengaluru_House_Data.csv")
 #print(df.head())
@@ -142,12 +143,27 @@ def remove_bhk_outliers(df):
     return df.drop(exclude_indices, axis='index')      # all rows with indices in exclude_indices are dropped from the DataFrame. axis='index' makes sure we’re dropping rows, not columns.
 
 df7 = remove_bhk_outliers(df6)
-print(df7.shape)
+#print(df7.shape)
 
 #plot_scatter_chart(df6, "Rajaji Nagar")
 #plot_scatter_chart(df6, "Hebbal")
 
 df8 = df7[df7.bath<df7.bhk+2]      # A 2 BHK with 4 or more bathrooms is likely a luxury or incorrect entry, so filtered from df7 and new dataframe is df8
-print(df8.shape)
+#print(df8.shape)
 
-df9 = df8.drop(['size', 'price_per_sqft'])
+df9 = df8.drop(['size', 'price_per_sqft'], axis='columns')
+
+
+dummies = pd.get_dummies(df9.location)       # One hot encoding
+df10 = pd.concat([df9, dummies.drop('other', axis='columns')], axis='columns')
+#print(df10.head())
+
+df11 = df10.drop('location', axis='columns')
+
+X = df11.drop('price', axis='columns')
+Y = df11['price']
+#print(Y.head())
+
+
+joblib.dump(X, 'X.pkl')
+joblib.dump(Y, 'Y.pkl')
