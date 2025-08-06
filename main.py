@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-import matplotlib as mp
+from matplotlib import pyplot as plt
+import matplotlib
 
 df = pd.read_csv("Bengaluru_House_Data.csv")
 #print(df.head())
@@ -58,5 +59,84 @@ df4 = df3.copy()
 df4['price_per_sqft'] = df4['price']*100000 / df4['total_sqft']      # Adding a new column in df4
 #print(df4.head())
 
-print((df4.location.unique()))     # Printing the unique location names, if they are many in number, this can be a huge problem!
+#print((df4.location.unique()))     # Printing the unique location names, if they are many in number, this can be a huge problem!
 
+df4.location = df4.location.apply(lambda x: x.strip())
+location_stats = df4.groupby('location')['location'].agg('count').sort_values(ascending= False)     # Returns the number of houses (Data points) in each location and arranges them in descdeing order
+#print(location_stats)
+
+location_stats_less_than_10 = location_stats[location_stats <= 10]     # Only those locations where number of houses is less than or equal to 10
+#print(location_stats_less_than_10)
+
+df4.location = df4.location.apply(lambda x: 'other' if x in location_stats_less_than_10 else x)
+#print(len(df4.location.unique()))
+
+######################
+# Outlier Detection
+######################
+
+# In this portion, we will detect any training example that doesn't seem realistc! Like a 1500 sqft house having 1 Bedroom. These are called as outliers. We will set a certain threshold for sqft/BHK then accordingly will remove the ones which do no come within the threshold!
+
+df5 = df4[~(df4.total_sqft/df4.bhk<300)]     # Below the normal ones now removed
+#print(df5.shape)  
+
+# Use .describe and see the results of max, min, std and mean to have an idea of more outliers
+
+#print(df5.price_per_sqft.describe())
+
+
+def remove_outliers(df):
+    # key is the location name.
+    # subdf contains only the rows of that particular location.
+    df_out = pd.DataFrame()
+    for key, subdf in df.groupby('location'):        # df.groupby('location') splits your dataset into multiple small DataFrames (subdf) — one for each location.
+        m = np.mean(subdf.price_per_sqft)
+        st = np.std(subdf.price_per_sqft)
+        reduced_df = subdf[(subdf.price_per_sqft>(m-st)) & (subdf.price_per_sqft<=(m+st))]     # core filtering line
+        df_out = pd.concat([df_out, reduced_df], ignore_index=True)      
+    return df_out
+
+df6 = remove_outliers(df5)
+#print(df6.shape)
+
+
+def plot_scatter_chart(df, location):
+    bhk2 = df[(df.location == location) & (df.bhk == 2)]
+    bhk3 = df[(df.location == location) & (df.bhk == 3)]
+    matplotlib.rcParams['figure.figsize'] = (15, 10)      # Setting the size of the frame
+    plt.scatter(bhk2.total_sqft, bhk2.price, color = 'blue', label='2 bhk', s=50)     # s is the size of each marker
+    plt.scatter(bhk3.total_sqft, bhk3.price, color = 'green', label='3 bhk', s=50)
+    plt.xlabel("Total sqft area")
+    plt.ylabel("Price per sqft")
+    plt.title(location)
+    plt.legend()
+    plt.show()
+
+""" #  What this plot tells you:
+Whether 2 BHK and 3 BHK properties follow a similar pricing pattern per square foot.
+
+Whether larger properties (3 BHK) are more expensive per sqft or cheaper per sqft.
+
+You can spot outliers (e.g., a 3 BHK that's far too cheap or expensive compared to 2 BHKs).
+
+Useful for understanding pricing inconsistency in specific locations — which is very important for building a better model. """
+
+plot_scatter_chart(df6, "Rajaji Nagar")
+plot_scatter_chart(df6, "Hebbal")
+
+def remove_bhk_outliers(df):
+    exclude_indices = np.array([])
+    for location, location_df in df.groupby('location'):
+        bhk_stats = {}
+        for bhk, bhk_df in location_df.groupby('bhk'):
+            bhk_stats[bhk] = {
+                'mean' : np.mean(bhk_df.price_per_sqft),
+                'std' : np.std(bhk_df.price_per_sqft),
+                'count' : bhk_df.shape[0]
+            }
+        
+        for bhk, bhk_df in location_df.groupby('bhk'):
+            stats = bhk_stats.get(bhk-1)
+            if stats and stats['count'] > 5:
+                exclude_indices = np.append(exclude_indices. bhk_df[bhk_df.price_per_sqft<(stats['mean'])].index.values)
+    return df.drop(exclude_indices, axis='index')
