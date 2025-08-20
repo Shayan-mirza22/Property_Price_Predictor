@@ -35,6 +35,10 @@ def get_estimated_price(location, sqft, bhk, bath):
         x[loc_index] = 1
     return round(model.predict([x])[0], 2)
     
+def get_meta_data(data, column):
+    return data[column].min(), data[column].max()
+
+
 if __name__ == '__main__':
     load_saved_artifacts()
     #print(get_location_names())
